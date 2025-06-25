@@ -1,7 +1,34 @@
 
-# Scout Attendance Forecasting Project
+# Scout Tournout Forecasting Project
 
 Questo progetto nasce come parte dell'esame di *Operational Analytics* per l'anno accademico 2024/2025. L'obiettivo è prevedere le **presenze settimanali** alle attività scout usando modelli di time series forecasting.
+
+## Come eseguirlo
+
+### 1. Crea un ambiente virtuale
+
+```bash
+python -m venv venv
+````
+
+### 2. Attiva l’ambiente (Windows)
+
+```bash
+venv\Scripts\activate
+```
+
+### 3. Installa le dipendenze
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Esegui lo script
+
+```bash
+python turnout_scout.py
+```
+
 
 ## Descrizione del Dataset
 
@@ -89,31 +116,7 @@ MAPE: 6.42%
 Correlation: 0.69
 
 
-## 🚀 Come eseguirlo
 
-### 1. Crea un ambiente virtuale
-
-```bash
-python -m venv venv
-````
-
-### 2. Attiva l’ambiente (Windows)
-
-```bash
-venv\Scripts\activate
-```
-
-### 3. Installa le dipendenze
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Esegui lo script
-
-```bash
-python turnout_scout.py
-```
 
 
 

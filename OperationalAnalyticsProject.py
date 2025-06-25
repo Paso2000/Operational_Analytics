@@ -1,10 +1,8 @@
 
 import pandas as pd
 import numpy as np
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-from sklearn.model_selection import train_test_split
 from xgboost import XGBRegressor
 from keras.models import Sequential
 from keras.layers import LSTM, Dense, Dropout
