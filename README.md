@@ -112,25 +112,8 @@ pip install -r requirements.txt
 ### 4. Esegui lo script
 
 ```bash
-python turnout_scout_2.py
+python turnout_scout.py
 ```
 
----
-
-## 🔒 Note finali
-
-* Tutti i modelli sono stati testati e addestrati **senza data leakage**
-* Dataset reale e originale: punto bonus per la personalizzazione
-* Il progetto è conforme al regolamento d’esame e pronto per essere eseguito in laboratorio
-
----
-
-## 👤 Autore
-
-**Luca P.**
-Capo scout Fo13
-Università degli Studi – Operational Analytics 2024/2025
 
 
-
-Fammi sapere se vuoi anche un file `requirements.txt` generato automaticamente da quello che hai usato, o se vuoi che ti crei anche la repo base con tutto organizzato.
