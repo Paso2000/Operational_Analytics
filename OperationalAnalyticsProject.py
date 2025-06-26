@@ -204,18 +204,16 @@ X_lstm_train, X_lstm_test = X_lstm[:-52], X_lstm[-52:]
 y_lstm_train, y_lstm_test = y_lstm[:-52], y_lstm[-52:]
 
 # Costruzione rete neurale LSTM
-lstm_model = Sequential()
-
-# Primo layer LSTM (ritorna sequenza per il prossimo LSTM)
-lstm_model.add(LSTM(64, return_sequences=True, input_shape=(X_lstm_train.shape[1], X_lstm_train.shape[2])))
-lstm_model.add(Dropout(0.2))
-
-# Secondo layer LSTM
-lstm_model.add(LSTM(32))
-lstm_model.add(Dropout(0.2))
-
-# Layer di output
-lstm_model.add(Dense(1))
+lstm_model = Sequential([
+    # Primo layer LSTM con return_sequences per il secondo LSTM
+    LSTM(64, return_sequences=True, input_shape=(X_lstm_train.shape[1], X_lstm_train.shape[2])),
+    Dropout(0.2),
+    # Secondo layer LSTM (non ritorna sequenze)
+    LSTM(32),
+    Dropout(0.2),
+    # Output layer (regressione su un valore)
+    Dense(1)
+])
 
 # Compilazione
 lstm_model.compile(optimizer="adam", loss="mse")
@@ -244,10 +242,14 @@ plt.show()
 # -------------------------------------
 
 # Funzione per stampa dei risultati
-def print_metrics(name, metrics):
+def print_metrics(name, metrics): 
     print(f"\n{name}")
     for k, v in metrics.items():
-        print(f"{k}: {v:.2f}")
+        if k in ['MAPE', 'MPE']:
+            print(f"{k}: {v:.2f}%")
+        else:
+            print(f"{k}: {v:.2f}")
+
 
 print("=== Turnout Forecast Metrics ===")
 print_metrics("SARIMA", sarima_metrics)
