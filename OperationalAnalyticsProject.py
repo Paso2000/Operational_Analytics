@@ -77,20 +77,6 @@ plt.title("Partial Autocorrelation (PACF)")
 plt.show()
 
 # -------------------------------------
-# FEATURE ENGINEERING
-# -------------------------------------
-
-# Estrai informazioni temporali come feature
-df["month"] = df.index.month
-df["weekofyear"] = df.index.isocalendar().week
-df["quarter"] = df.index.quarter
-df["year"] = df.index.year
-
-# Aggiunge media e deviazione standard mobile su 4 settimane
-df["rolling_mean_4"] = df["turnout"].rolling(window=4).mean()
-df["rolling_std_4"] = df["turnout"].rolling(window=4).std()
-
-# -------------------------------------
 # TEST DI STAZIONARIETÀ (ADF Test)
 # -------------------------------------
 
@@ -110,42 +96,44 @@ train = df.iloc[:-52]
 test = df.iloc[-52:]
 
 #----algoritmo per cercare i migliori valori per order e seasonal order
-# auto_model = pm.auto_arima(
-#     train["turnout"],
-#     seasonal=True,
-#     m=52,  # stagionalità annuale settimanale
-#     stepwise=True,
-#     suppress_warnings=True,
-#     trace=True  # mostra i tentativi
-# )
+# model = pm.auto_arima(df["turnout"], start_p=1, start_q=1,
+# test='adf', max_p=3, max_q=3, m=4,
+# start_P=0, seasonal=True,
+# d=None, D=1, trace=True,
+# error_action='ignore',
+# suppress_warnings=True,
+# stepwise=True) # stepwise=False full grid
+# print(model.summary())
 
 # Stampa il modello migliore trovato
 #print(auto_model.summary())
 
 # -------------------------------------
-# 1. MODELLO SARIMAX (Statistical)
+# 1. MODELLO SARIMA (Statistical)
 # -------------------------------------
 
-# Creazione e training del modello SARIMAX
-SARIMAX_model = SARIMAX(
+# Creazione e training del modello SARIMA
+SARIMA_model = SARIMAX(
     train["turnout"],
-    order=(1, 1, 1),               # Ordine ARIMA (p,d,q)
-    seasonal_order=(1, 0, 1, 52)   # Ordine stagionale (P,D,Q,s) con stagionalità settimanale
+    order=(1, 1, 1), #model.order              # Ordine ARIMA (p,d,q)
+    seasonal_order=(1, 0, 1, 52) #model.seasonal_order  # Ordine stagionale (P,D,Q,s) con stagionalità settimanale
 )
-SARIMAX_result = SARIMAX_model.fit()
+SARIMA_trained = SARIMA_model.fit()
 
 # Forecast sul periodo di test
-forecast_sarimax = SARIMAX_result.forecast(steps=len(test))
+forecast_sarima = SARIMA_trained.forecast(steps=len(test))
 
 # Valutazione del modello
-sarima_metrics = evaluate(test["turnout"], forecast_sarimax)
+sarima_metrics = evaluate(test["turnout"], forecast_sarima)
 
 # Plot dei risultati
 plt.figure(figsize=(12, 6))
 plt.plot(test.index, test["turnout"], label="True")
-plt.plot(test.index, forecast_sarimax, label="SARIMAX")
+plt.plot(test.index, forecast_sarima, label="SARIMA")
 plt.legend()
-plt.title("Turnout Forecast SARIMAX Result")
+plt.title("Turnout Forecast SARIMA Result")
+plt.show()
+SARIMA_trained.plot_diagnostics(figsize=(12,6))
 plt.show()
 
 
@@ -160,7 +148,15 @@ df_feat = df.copy()
 for lag in range(1, 13):
     df_feat[f"lag_{lag}"] = df_feat["turnout"].shift(lag)
 
+
+# Estrai informazioni temporali come feature
+df_feat["month"] = df_feat.index.month
+df_feat["weekofyear"] = df_feat.index.isocalendar().week
+df_feat["quarter"] = df_feat.index.quarter
+df_feat["year"] = df_feat.index.year
+
 # Feature statistiche mobili (rolling mean & std)
+# Aggiunge media e deviazione standard mobile su 4 settimane
 df_feat["rolling_mean_4"] = df_feat["turnout"].rolling(window=4).mean()
 df_feat["rolling_std_4"] = df_feat["turnout"].rolling(window=4).std()
 
@@ -209,13 +205,23 @@ y_lstm_train, y_lstm_test = y_lstm[:-52], y_lstm[-52:]
 
 # Costruzione rete neurale LSTM
 lstm_model = Sequential()
-lstm_model.add(LSTM(50, input_shape=(X_lstm_train.shape[1], X_lstm_train.shape[2])))
+
+# Primo layer LSTM (ritorna sequenza per il prossimo LSTM)
+lstm_model.add(LSTM(64, return_sequences=True, input_shape=(X_lstm_train.shape[1], X_lstm_train.shape[2])))
+lstm_model.add(Dropout(0.2))
+
+# Secondo layer LSTM
+lstm_model.add(LSTM(32))
+lstm_model.add(Dropout(0.2))
+
+# Layer di output
 lstm_model.add(Dense(1))
-lstm_model.add(Dropout(0.2))  # aiuta a non sovradattarsi
+
+# Compilazione
 lstm_model.compile(optimizer="adam", loss="mse")
 
 # Addestramento modello
-lstm_model.fit(X_lstm_train, y_lstm_train, epochs=30, batch_size=16, verbose=0)
+lstm_model.fit(X_lstm_train, y_lstm_train, epochs=60, batch_size=16, verbose=0)
 
 # Predizione e denormalizzazione
 lstm_pred = lstm_model.predict(X_lstm_test)
@@ -244,22 +250,22 @@ def print_metrics(name, metrics):
         print(f"{k}: {v:.2f}")
 
 print("=== Turnout Forecast Metrics ===")
-print_metrics("SARIMAX", sarima_metrics)
+print_metrics("SARIMA", sarima_metrics)
 print_metrics("XGBoost", xgb_metrics)
 print_metrics("LSTM", lstm_metrics)
 
 # Plot unico di confronto tra tutti i modelli
 plt.figure(figsize=(12, 6))
 plt.plot(test.index, test["turnout"], label="True")
-plt.plot(test.index, forecast_sarimax, label="SARIMAX")
+plt.plot(test.index, forecast_sarima, label="SARIMA")
 plt.plot(test.index, xgb_pred, label="XGBoost")
 plt.plot(test.index, lstm_pred_inv, label="LSTM")
 plt.legend()
 plt.title("Turnout Forecast - Confronto Finale")
 plt.show()
 
-# --- 1. SARIMAX su tutta la serie ---
-sarimax_pred_all = SARIMAX_result.predict(start=df.index[1], end=df.index[-1])
+# --- 1. SARIMA su tutta la serie ---
+sarima_pred_all = SARIMA_trained.predict(start=df.index[1], end=df.index[-1])
 
 # --- 2. XGBoost su tutto il dataset (dove possibile) ---
 xgb_pred_all = xgb_model.predict(X)
@@ -276,7 +282,7 @@ lstm_index = df.index[12:]
 # --- PLOT COMPLETO ---
 plt.figure(figsize=(14,6))
 plt.plot(df.index, df["turnout"], label="True", color='black')
-plt.plot(sarimax_pred_all.index, sarimax_pred_all, label="SARIMAX (all)", linestyle='--')
+plt.plot(sarima_pred_all.index, sarima_pred_all, label="SARIMA (all)", linestyle='--')
 plt.plot(X.index, xgb_pred_all, label="XGBoost (all)", linestyle='--')
 plt.plot(lstm_index, lstm_pred_all_inv.ravel(), label="LSTM (all)", linestyle='--')
 plt.title("Predizioni di tutti i modelli sull'intera serie temporale")
