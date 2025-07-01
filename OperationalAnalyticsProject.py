@@ -9,12 +9,13 @@ from keras.layers import LSTM, Dense, Dropout
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from dm_test import dm_test
 # -------------------------------------
 # Funzione per creare dataset per modelli LSTM o simili
 # Trasforma una serie temporale in un dataset supervisionato
 # look_back = numero di valori passati usati come input
 # -------------------------------------
-def create_dataset(data, look_back=12):
+def create_dataset(data, look_back=52):
     X, y = [], []
     for i in range(len(data) - look_back):
         X.append(data[i:i+look_back])
@@ -116,8 +117,7 @@ test = df.iloc[-52:]
 SARIMA_model = SARIMAX(
     train["turnout"],
     order=(1, 1, 1), #model.order              # Ordine ARIMA (p,d,q)
-    seasonal_order=(1, 0, 1, 52) #model.seasonal_order  # Ordine stagionale (P,D,Q,s) con stagionalità settimanale
-)
+    seasonal_order=(1, 0, 1, 52)) #model.seasonal_order  # Ordine stagionale (P,D,Q,s) con stagionalità settimanale
 SARIMA_trained = SARIMA_model.fit()
 
 # Forecast sul periodo di test
@@ -145,7 +145,7 @@ plt.show()
 df_feat = df.copy()
 
 # Feature lag (valori delle settimane precedenti)
-for lag in range(1, 13):
+for lag in range(1, 53):
     df_feat[f"lag_{lag}"] = df_feat["turnout"].shift(lag)
 
 
@@ -172,7 +172,7 @@ X_train, X_test = X.loc[:train.index[-1]], X.loc[test.index[0]:]
 y_train, y_test = y.loc[:train.index[-1]], y.loc[test.index[0]:]
 
 # Addestramento del modello XGBoost
-xgb_model = XGBRegressor(n_estimators=100)
+xgb_model = XGBRegressor(objective='reg:squarederror',n_estimators=100)
 xgb_model.fit(X_train, y_train)
 
 # Predizione e valutazione
@@ -281,12 +281,28 @@ lstm_pred_all_inv = scaler.inverse_transform(lstm_pred_all)
 lstm_index_start = df.index[12]  # i primi 12 non esistono perché usati come lookback
 lstm_index = df.index[12:]
 
+
+true = test["turnout"].values
+sarima_forecast = forecast_sarima
+xgb_forecast = xgb_pred
+lstm_forecast = lstm_pred_inv.ravel()
+# Esegui i test Diebold-Mariano
+dm_sarima_vs_xgb = dm_test(true, sarima_forecast, xgb_forecast, h=1, crit="MSE")
+dm_sarima_vs_lstm = dm_test(true, sarima_forecast, lstm_forecast, h=1, crit="MSE")
+dm_xgb_vs_lstm = dm_test(true, xgb_forecast, lstm_forecast, h=1, crit="MSE")
+
+# Stampa i risultati
+print("\n--- Diebold-Mariano Test ---")
+print(f"SARIMA vs XGBoost:     DM = {dm_sarima_vs_xgb.DM:.3f}, p-value = {dm_sarima_vs_xgb.p_value:.4f}")
+print(f"SARIMA vs LSTM:        DM = {dm_sarima_vs_lstm.DM:.3f}, p-value = {dm_sarima_vs_lstm.p_value:.4f}")
+print(f"XGBoost vs LSTM:       DM = {dm_xgb_vs_lstm.DM:.3f}, p-value = {dm_xgb_vs_lstm.p_value:.4f}")
+
 # --- PLOT COMPLETO ---
 plt.figure(figsize=(14,6))
 plt.plot(df.index, df["turnout"], label="True", color='black')
-plt.plot(sarima_pred_all.index, sarima_pred_all, label="SARIMA (all)", linestyle='--')
-plt.plot(X.index, xgb_pred_all, label="XGBoost (all)", linestyle='--')
-plt.plot(lstm_index, lstm_pred_all_inv.ravel(), label="LSTM (all)", linestyle='--')
+plt.plot(sarima_pred_all.index, sarima_pred_all, label="SARIMA", linestyle='--')
+plt.plot(X.index, xgb_pred_all, label="XGBoost", linestyle='--')
+plt.plot(lstm_index, lstm_pred_all_inv.ravel(), label="LSTM", linestyle='--')
 plt.title("Predizioni di tutti i modelli sull'intera serie temporale")
 plt.xlabel("Data")
 plt.ylabel("Turnout")
