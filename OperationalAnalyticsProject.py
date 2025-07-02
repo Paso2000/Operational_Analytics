@@ -8,14 +8,15 @@ from keras.models import Sequential
 from keras.layers import LSTM, Dense, Dropout
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
+from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from dm_test import dm_test
 # -------------------------------------
-# Funzione per creare dataset per modelli LSTM o simili
+# Funzione per creare dataset
 # Trasforma una serie temporale in un dataset supervisionato
 # look_back = numero di valori passati usati come input
 # -------------------------------------
-def create_dataset(data, look_back=52):
+def create_dataset(data, look_back=12):#Circa 3 mesi
     X, y = [], []
     for i in range(len(data) - look_back):
         X.append(data[i:i+look_back])
@@ -63,6 +64,12 @@ df.set_index("date", inplace=True)
 df = df.asfreq("W")
 df["turnout"].interpolate(inplace=True)
 
+ds = df[df.columns[0]] # converts to series
+result = seasonal_decompose(ds, model='multiplicative',period=12)
+result.plot()
+plt.show()
+
+
 # -------------------------------------
 # ANALISI ACF E PACF
 # -------------------------------------
@@ -87,8 +94,6 @@ adf_result = adfuller(df["turnout"])
 print("\n=== Risultati ADF Test ===")
 print(f"ADF Statistic: {adf_result[0]:.4f}")
 print(f"P-value: {adf_result[1]:.4f}")
-for key, value in adf_result[4].items():
-    print(f"Critical Value ({key}): {value:.4f}")
 
 #Il p-value < 0.05, la serie è stazionaria e non richiede differenziazione
 
@@ -145,7 +150,7 @@ plt.show()
 df_feat = df.copy()
 
 # Feature lag (valori delle settimane precedenti)
-for lag in range(1, 53):
+for lag in range(1, 13):
     df_feat[f"lag_{lag}"] = df_feat["turnout"].shift(lag)
 
 
