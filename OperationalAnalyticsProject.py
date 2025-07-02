@@ -15,13 +15,15 @@ from dm_test import dm_test
 # Funzione per creare dataset
 # Trasforma una serie temporale in un dataset supervisionato
 # look_back = numero di valori passati usati come input
+#X = [valori turnout di 12 settimane passate]
+#Y = [valore turnout della settimana successiva]
 # -------------------------------------
 def create_dataset(data, look_back=12):#Circa 3 mesi
-    X, y = [], []
+    X, Y = [], []
     for i in range(len(data) - look_back):
         X.append(data[i:i+look_back])
-        y.append(data[i+look_back])
-    return np.array(X), np.array(y)
+        Y.append(data[i+look_back])
+    return np.array(X), np.array(Y)
 
 # -------------------------------------
 # Funzione di valutazione della qualità del forecast
@@ -286,15 +288,10 @@ lstm_pred_all_inv = scaler.inverse_transform(lstm_pred_all)
 lstm_index_start = df.index[12]  # i primi 12 non esistono perché usati come lookback
 lstm_index = df.index[12:]
 
-
-true = test["turnout"].values
-sarima_forecast = forecast_sarima
-xgb_forecast = xgb_pred
-lstm_forecast = lstm_pred_inv.ravel()
 # Esegui i test Diebold-Mariano
-dm_sarima_vs_xgb = dm_test(true, sarima_forecast, xgb_forecast, h=1, crit="MSE")
-dm_sarima_vs_lstm = dm_test(true, sarima_forecast, lstm_forecast, h=1, crit="MSE")
-dm_xgb_vs_lstm = dm_test(true, xgb_forecast, lstm_forecast, h=1, crit="MSE")
+dm_sarima_vs_xgb = dm_test(test["turnout"].values, forecast_sarima, xgb_pred, h=1, crit="MSE")
+dm_sarima_vs_lstm = dm_test(test["turnout"].values, forecast_sarima, lstm_pred_inv.ravel(), h=1, crit="MSE")
+dm_xgb_vs_lstm = dm_test(test["turnout"].values, xgb_pred, lstm_pred_inv.ravel(), h=1, crit="MSE")
 
 # Stampa i risultati
 print("\n--- Diebold-Mariano Test ---")
@@ -315,6 +312,3 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.show()
-
-
-
